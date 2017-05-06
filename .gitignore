@@ -3,3 +3,7 @@
 /windows-sim*
 /.idea
 /__pycache__
+.floydexpt
+.floydignore
+floyd_requirements.txt
+/video

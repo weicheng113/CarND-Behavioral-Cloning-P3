@@ -5,7 +5,7 @@ import os.path
 # TODO: import Keras layers you need here
 from keras.models import Sequential
 from keras.layers.core import Dense, Flatten, Lambda, Activation
-from keras.layers.convolutional import Conv2D, MaxPooling2D, Cropping2D
+from keras.layers.convolutional import Conv2D, MaxPooling2D
 from keras import backend as K
 
 def load_data(data_dir):
@@ -62,38 +62,30 @@ def read_driving_log(filename):
 def LeNet(input_shape):
     model = Sequential()
 
-    def preprocess(image):
-        return image/255 - 0.5
-    model.add(Cropping2D(cropping=((50,20), (0,0)), input_shape=input_shape))
-    model.add(Lambda(preprocess))
+    model.add(Lambda(preprocess, input_shape=input_shape))
 
-    model.add(Conv2D(3, (5, 5), strides=(2, 2)))
+    model.add(Conv2D(6, (5, 5)))
+    model.add(MaxPooling2D((2, 2)))
     model.add(Activation("relu"))
 
-    model.add(Conv2D(24, (5, 5), strides=(2, 2)))
-    model.add(Activation("relu"))
-
-    model.add(Conv2D(36, (5, 5), strides=(2, 2)))
-    model.add(Activation("relu"))
-
-    model.add(Conv2D(48, (3, 3)))
-    model.add(Activation("relu"))
-
-    model.add(Conv2D(64, (3, 3)))
+    model.add(Conv2D(6, (5, 5)))
+    model.add(MaxPooling2D((2, 2)))
     model.add(Activation("relu"))
 
     model.add(Flatten())
-    model.add(Dense(100))
-    model.add(Dense(50))
-    model.add(Dense(10))
+    model.add(Dense(120))
+    model.add(Dense(84))
     model.add(Dense(1))
 
     return model
 
+def preprocess(image):
+    return image/255 - 0.5
+
 if __name__ == '__main__':
     # pip install --upgrade tensorflow-gpu
     # https://d17h27t6h515a5.cloudfront.net/topher/2016/December/584f6edd_data/data.zip
-    X_train, y_train = load_data("my-data1")
+    X_train, y_train = load_data("data")
     print("X_train shape: ", X_train.shape)
     print("y_train shape: ", y_train.shape)
     # Build model
@@ -102,7 +94,7 @@ if __name__ == '__main__':
     # Train model
     model.fit(x=X_train, y=y_train, batch_size=128, validation_split=0.3, shuffle=True, epochs=5)
     # Save model
-    model_file = "model.h5"
+    model_file = "model_v3.h5"
     model.save(model_file)
     print("Saved model to: ", model_file)
 
