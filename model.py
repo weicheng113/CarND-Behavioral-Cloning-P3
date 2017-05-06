@@ -93,7 +93,7 @@ def LeNet(input_shape):
 if __name__ == '__main__':
     # pip install --upgrade tensorflow-gpu
     # https://d17h27t6h515a5.cloudfront.net/topher/2016/December/584f6edd_data/data.zip
-    X_train, y_train = load_data("my-data1")
+    X_train, y_train = load_data("data")
     print("X_train shape: ", X_train.shape)
     print("y_train shape: ", y_train.shape)
     # Build model
