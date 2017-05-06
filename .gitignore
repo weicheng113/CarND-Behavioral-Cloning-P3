@@ -1,4 +1,5 @@
 /*data*
-/model.h5
+/model*.h5
 /windows-sim*
 /.idea
+/__pycache__
