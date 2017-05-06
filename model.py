@@ -87,14 +87,14 @@ if __name__ == '__main__':
     print("X_train shape: ", X_train.shape)
     print("y_train shape: ", y_train.shape)
     # Build model
-    # model = LeNet(input_shape=(160, 320, 3))
-    # model.compile(optimizer="adam", loss="mse")
-    # # Train model
-    # model.fit(x=X_train, y=y_train, batch_size=128, validation_split=0.3, shuffle=True, epochs=5)
-    # # Save model
-    # model_file = "model.h5"
-    # model.save(model_file)
-    # print("Saved model to: ", model_file)
-    #
-    # # Temporary fix - AttributeError: 'NoneType' object has no attribute 'TF_NewStatus
-    # K.clear_session()
+    model = LeNet(input_shape=(160, 320, 3))
+    model.compile(optimizer="adam", loss="mse")
+    # Train model
+    model.fit(x=X_train, y=y_train, batch_size=128, validation_split=0.3, shuffle=True, epochs=5)
+    # Save model
+    model_file = "model.h5"
+    model.save(model_file)
+    print("Saved model to: ", model_file)
+
+    # Temporary fix - AttributeError: 'NoneType' object has no attribute 'TF_NewStatus
+    K.clear_session()
