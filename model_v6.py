@@ -162,7 +162,8 @@ def main(_):
     model_file = "model_v6.h5"
     model.save(model_file)
     print("Saved model to: ", model_file)
-
+    # Output model summary.
+    print(model.summary())
     # Temporary fix - AttributeError: 'NoneType' object has no attribute 'TF_NewStatus
     K.clear_session()
 
