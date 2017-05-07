@@ -97,17 +97,19 @@ def NvidiaNet(input_shape):
     model.add(Activation("relu"))
 
     model.add(Conv2D(24, (5, 5)))
-    model.add(MaxPooling2D((2, 2)))
+    model.add(MaxPooling2D((2, 2), padding="same"))
     model.add(Activation("relu"))
 
     model.add(Conv2D(36, (5, 5)))
-    model.add(Dropout(0.5))
+    model.add(MaxPooling2D((2, 2), padding="same"))
     model.add(Activation("relu"))
 
     model.add(Conv2D(48, (3, 3)))
+    model.add(MaxPooling2D((2, 2), padding="same"))
     model.add(Activation("relu"))
 
     model.add(Conv2D(64, (3, 3)))
+    model.add(Dropout(0.5))
     model.add(Activation("relu"))
 
     model.add(Flatten())
