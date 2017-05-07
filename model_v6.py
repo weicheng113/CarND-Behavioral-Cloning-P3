@@ -148,24 +148,19 @@ def main(_):
     model = NvidiaNet(input_shape=(160, 320, 3))
     optimizer = Adam(lr=0.001)
     model.compile(optimizer=optimizer, loss="mse")
-    # 1. Train model.
-    # 2. Output TensorBoard logs.
+    # Train model
     steps_per_epoch = steps(train_sample_lines, batch_size)
     validation_steps = steps(validation_sample_lines, batch_size)
-    tb_callback = TensorBoard(log_dir='./logs', histogram_freq=0, write_graph=True, write_images=True)
     model.fit_generator(
         generator=train_generator,
         steps_per_epoch=steps_per_epoch,
         epochs=epochs,
         validation_data=validation_generator,
-        validation_steps=validation_steps,
-        callbacks=[tb_callback])
+        validation_steps=validation_steps)
     # Save model
-    model_file = "model.h5"
+    model_file = "model_v6.h5"
     model.save(model_file)
     print("Saved model to: ", model_file)
-    # Output model summary.
-    print(model.summary())
 
     # Temporary fix - AttributeError: 'NoneType' object has no attribute 'TF_NewStatus
     K.clear_session()

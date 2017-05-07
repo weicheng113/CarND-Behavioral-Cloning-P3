@@ -7,3 +7,4 @@
 .floydignore
 floyd_requirements.txt
 /video
+/logs
