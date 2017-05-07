@@ -1,0 +1,1 @@
+python model.py --data_dirs "my-data1, my-data2" --epochs 5
