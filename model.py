@@ -1,7 +1,6 @@
 import numpy as np
 import csv
 import cv2
-import os.path
 from sklearn.utils import shuffle
 from sklearn.model_selection import train_test_split
 import tensorflow as tf
@@ -41,7 +40,7 @@ def parse_driving_log_line(line, image_dir):
     # Format: Center Image, Left Image, Right Image, Steering Angle, Throttle, Break, Speed
     [center_image_path, left_image_path, right_image_path, steering_angle, throttle, _break, speed] = line
     def map_path(path):
-        filename = os.path.split(path)[-1]
+        filename = path.replace('\\', '/').split("/")[-1]
         return image_dir + "/" + filename
     return (map_path(center_image_path), map_path(left_image_path), map_path(right_image_path), float(steering_angle), throttle, _break, speed)
 
