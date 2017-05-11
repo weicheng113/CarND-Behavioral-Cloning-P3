@@ -4,6 +4,8 @@ import cv2
 from sklearn.utils import shuffle
 from sklearn.model_selection import train_test_split
 import tensorflow as tf
+import matplotlib.pyplot as plt
+from itertools import chain
 # TODO: import Keras layers you need here
 from keras.models import Sequential
 from keras.layers.core import Dense, Flatten, Lambda, Activation, Dropout
@@ -89,8 +91,8 @@ def NvidiaNet(input_shape):
 
     def preprocess(image):
         return image/255 - 0.5
-    model.add(Cropping2D(cropping=((50,20), (0,0)), input_shape=input_shape))
-    model.add(Lambda(preprocess))
+    model.add(Cropping2D(cropping=((50,0), (0,0)), input_shape=input_shape))
+    model.add(Lambda(preprocess, input_shape=input_shape))
 
     model.add(Conv2D(3, (5, 5)))
     model.add(MaxPooling2D((2, 2)))
@@ -104,7 +106,7 @@ def NvidiaNet(input_shape):
     model.add(MaxPooling2D((2, 2), padding="same"))
     model.add(Activation("relu"))
 
-    model.add(Conv2D(48, (3, 3)))
+    model.add(Conv2D(48, (5, 3)))
     model.add(MaxPooling2D((2, 2), padding="same"))
     model.add(Activation("relu"))
 
@@ -121,7 +123,8 @@ def NvidiaNet(input_shape):
     return model
 
 def steps(samples, batch_size):
-    return (len(samples)+batch_size-1)/batch_size
+    #return (len(samples)+batch_size-1)/batch_size
+    return len(samples)/batch_size
 
 def parse_data_dirs():
     raw_dirs = FLAGS.data_dirs.split(",")
@@ -133,14 +136,26 @@ def parse_data_dirs():
 def parse_epochs():
     return FLAGS.epochs
 
-def main(_):
-    data_dirs = parse_data_dirs()
-    epochs = parse_epochs()
-    batch_size = 128
-    # pip install --upgrade tensorflow-gpu
-    # https://d17h27t6h515a5.cloudfront.net/topher/2016/December/584f6edd_data/data.zip
-    # Load data
-    sample_lines = load_from_dirs(data_dirs)
+def steering_angle_distribution(lines):
+    def steering_angles(line):
+        (center_image_path, left_image_path, right_image_path, center_steering_angle, throttle, _break, speed) = line
+        steering_correction_factor = 0.2 # this is a parameter to tune
+        left_steering_angle = center_steering_angle + steering_correction_factor
+        right_steering_angle = center_steering_angle - steering_correction_factor
+        center_steering_angle_flipped = -center_steering_angle
+        return [center_steering_angle, left_steering_angle, right_steering_angle, center_steering_angle_flipped]
+
+    steering_angles = list(flatmap(steering_angles, lines))
+    plt.hist(steering_angles)
+    plt.title("Steering Angle Distribution")
+    plt.xlabel("Angle")
+    plt.ylabel("Frequency")
+    plt.show()
+
+def flatmap(f, items):
+    return chain.from_iterable(map(f, items))
+
+def train(sample_lines, epochs, batch_size):
     train_sample_lines, validation_sample_lines = train_test_split(sample_lines, test_size=0.2)
     print("Samples(total: ", len(sample_lines), ", train: ", len(train_sample_lines), ", validation: ", len(validation_sample_lines), ")")
     train_generator = generator(train_sample_lines, batch_size=batch_size)
@@ -166,6 +181,18 @@ def main(_):
     print(model.summary())
     # Temporary fix - AttributeError: 'NoneType' object has no attribute 'TF_NewStatus
     K.clear_session()
+
+def main(_):
+    # pip install --upgrade tensorflow-gpu
+    # https://d17h27t6h515a5.cloudfront.net/topher/2016/December/584f6edd_data/data.zip
+    # Load data
+    data_dirs = parse_data_dirs()
+    epochs = parse_epochs()
+    sample_lines = load_from_dirs(data_dirs)
+
+    train(sample_lines = sample_lines, epochs=epochs, batch_size = 32)
+
+    #steering_angle_distribution(lines = sample_lines)
 
 # parses flags and calls the `main` function above
 if __name__ == '__main__':
