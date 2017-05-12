@@ -183,7 +183,7 @@ def train(sample_lines, epochs, batch_size):
     # Build model
     model = NvidiaNet(input_shape=(160, 320, 3))
     optimizer = Adam(lr=0.001)
-    model.compile(optimizer=optimizer, loss="mse", metrics=['accuracy'])
+    model.compile(optimizer=optimizer, loss="mse")
     # Train model
     steps_per_epoch = steps(train_sample_lines, batch_size)
     validation_steps = steps(validation_sample_lines, batch_size)
