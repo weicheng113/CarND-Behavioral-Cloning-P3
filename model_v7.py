@@ -111,7 +111,7 @@ def NvidiaNet(input_shape):
     def preprocess(image):
         return image/255 - 0.5
     model.add(Cropping2D(cropping=((50,20), (0,0)), input_shape=input_shape))
-    model.add(Lambda(preprocess, input_shape=input_shape))
+    model.add(Lambda(preprocess))
 
     model.add(Conv2D(3, (5, 5)))
     model.add(Dropout(0.5))
@@ -123,7 +123,7 @@ def NvidiaNet(input_shape):
     model.add(Activation("relu"))
 
     model.add(Conv2D(36, (5, 5)))
-    #model.add(Dropout(0.5))
+    model.add(Dropout(0.5))
     model.add(MaxPooling2D((2, 2), padding="same"))
     model.add(Activation("relu"))
 
