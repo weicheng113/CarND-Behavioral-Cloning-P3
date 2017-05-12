@@ -61,6 +61,7 @@ def read_driving_log(filename):
 
 def generator(sample_lines, batch_size):
     num_samples = len(sample_lines)
+    test = TestCase()
     while 1:
         lines = shuffle(sample_lines)
         for offset in range(0, num_samples, batch_size):
@@ -70,6 +71,8 @@ def generator(sample_lines, batch_size):
             steering_angles = []
             for line in batch_lines:
                 (line_images, line_steering_angles) = preprocess(line)
+                test.assertAlmostEqual(sum(line_steering_angles), 0.0)
+
                 images.extend(line_images)
                 steering_angles.extend(line_steering_angles)
             X_train = np.array(images)
