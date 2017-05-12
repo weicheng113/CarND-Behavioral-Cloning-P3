@@ -188,7 +188,7 @@ def train(sample_lines, epochs, batch_size):
     steps_per_epoch = steps(train_sample_lines, batch_size)
     validation_steps = steps(validation_sample_lines, batch_size)
     # Callbacks
-    model_file="model_v7-{epoch:02d}-{val_acc:.2f}.h5"
+    model_file="model_v7-{epoch:02d}-{val_loss:.2f}.h5"
     cb_checkpoint = ModelCheckpoint(filepath=model_file)
     cb_tensor_board = TensorBoard(log_dir='./logs', histogram_freq=0, write_graph=True, write_images=True)
     cb_early_stopping = EarlyStopping(patience=1)
