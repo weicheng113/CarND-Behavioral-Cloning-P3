@@ -6,6 +6,7 @@ from sklearn.model_selection import train_test_split
 import tensorflow as tf
 import matplotlib.pyplot as plt
 from itertools import chain
+from unittest import TestCase
 # TODO: import Keras layers you need here
 from keras.models import Sequential
 from keras.layers.core import Dense, Flatten, Lambda, Activation, Dropout
@@ -19,7 +20,7 @@ FLAGS = flags.FLAGS
 
 # command line flags
 flags.DEFINE_string('data_dirs', 'data', "Data directory list, separated by comma")
-flags.DEFINE_integer('epochs', 10, "Training epochs")
+flags.DEFINE_integer('epochs', 5, "Training epochs")
 
 def load_from_dirs(data_dirs):
     combined_lines = []
@@ -68,23 +69,38 @@ def generator(sample_lines, batch_size):
             images = []
             steering_angles = []
             for line in batch_lines:
-                (center_image_path, left_image_path, right_image_path, center_steering_angle, throttle, _break, speed) = line
-
-                center_image = cv2.imread(center_image_path)
-                left_image = cv2.imread(left_image_path)
-                right_image = cv2.imread(right_image_path)
-                center_image_flipped = np.fliplr(center_image)
-
-                steering_correction_factor = 0.2 # this is a parameter to tune
-                left_steering_angle = center_steering_angle + steering_correction_factor
-                right_steering_angle = center_steering_angle - steering_correction_factor
-                center_steering_angle_flipped = -center_steering_angle
-
-                images.extend([center_image, left_image, right_image, center_image_flipped])
-                steering_angles.extend([center_steering_angle, left_steering_angle, right_steering_angle, center_steering_angle_flipped])
+                (line_images, line_steering_angles) = preprocess(line)
+                images.extend(line_images)
+                steering_angles.extend(line_steering_angles)
             X_train = np.array(images)
             y_train = np.array(steering_angles)
             yield X_train, y_train
+
+def preprocess(line):
+    (center_image_path, left_image_path, right_image_path, center_steering_angle, throttle, _break, speed) = line
+    def preprocess_images():
+        center = cv2.imread(center_image_path)
+        left = cv2.imread(left_image_path)
+        right = cv2.imread(right_image_path)
+
+        center_flipped = np.fliplr(center)
+        left_flipped = np.fliplr(left)
+        right_flipped = np.fliplr(right)
+        return [center, left, right,
+                center_flipped, left_flipped, right_flipped]
+
+    return (preprocess_images(), preprocess_steering_angles(center_steering_angle))
+
+def preprocess_steering_angles(center):
+    correction_factor = 0.1 # this is a parameter to tune
+    left = center + correction_factor
+    right = center - correction_factor
+
+    center_flipped = -center
+    left_flipped = -left
+    right_flipped = -right
+    return [center, left, right,
+            center_flipped, left_flipped, right_flipped]
 
 def NvidiaNet(input_shape):
     model = Sequential()
@@ -95,6 +111,7 @@ def NvidiaNet(input_shape):
     model.add(Lambda(preprocess, input_shape=input_shape))
 
     model.add(Conv2D(3, (5, 5)))
+    model.add(Dropout(0.5))
     model.add(MaxPooling2D((2, 2)))
     model.add(Activation("relu"))
 
@@ -103,6 +120,7 @@ def NvidiaNet(input_shape):
     model.add(Activation("relu"))
 
     model.add(Conv2D(36, (5, 5)))
+    model.add(Dropout(0.5))
     model.add(MaxPooling2D((2, 2), padding="same"))
     model.add(Activation("relu"))
 
@@ -111,7 +129,6 @@ def NvidiaNet(input_shape):
     model.add(Activation("relu"))
 
     model.add(Conv2D(64, (3, 3)))
-    model.add(Dropout(0.5))
     model.add(Activation("relu"))
 
     model.add(Flatten())
@@ -137,13 +154,13 @@ def parse_epochs():
     return FLAGS.epochs
 
 def steering_angle_distribution(lines):
+    test = TestCase()
     def steering_angles(line):
         (center_image_path, left_image_path, right_image_path, center_steering_angle, throttle, _break, speed) = line
-        steering_correction_factor = 0.2 # this is a parameter to tune
-        left_steering_angle = center_steering_angle + steering_correction_factor
-        right_steering_angle = center_steering_angle - steering_correction_factor
-        center_steering_angle_flipped = -center_steering_angle
-        return [center_steering_angle, left_steering_angle, right_steering_angle, center_steering_angle_flipped]
+        angles = preprocess_steering_angles(center_steering_angle)
+        test.assertAlmostEqual(sum(angles), 0.0)
+        #print("line_steering_angles: ", line_steering_angles)
+        return angles
 
     steering_angles = list(flatmap(steering_angles, lines))
     plt.hist(steering_angles)
