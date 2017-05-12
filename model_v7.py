@@ -4,20 +4,23 @@ import cv2
 from sklearn.utils import shuffle
 from sklearn.model_selection import train_test_split
 import tensorflow as tf
+import matplotlib.pyplot as plt
+from itertools import chain
+from unittest import TestCase
 # TODO: import Keras layers you need here
 from keras.models import Sequential
 from keras.layers.core import Dense, Flatten, Lambda, Activation, Dropout
 from keras.layers.convolutional import Conv2D, MaxPooling2D, Cropping2D
 from keras.optimizers import Adam
 from keras import backend as K
-from keras.callbacks import TensorBoard
+from keras.callbacks import TensorBoard, ModelCheckpoint, EarlyStopping
 
 flags = tf.app.flags
 FLAGS = flags.FLAGS
 
 # command line flags
 flags.DEFINE_string('data_dirs', 'data', "Data directory list, separated by comma")
-flags.DEFINE_integer('epochs', 10, "Training epochs")
+flags.DEFINE_integer('epochs', 5, "Training epochs")
 
 def load_from_dirs(data_dirs):
     combined_lines = []
@@ -58,6 +61,7 @@ def read_driving_log(filename):
 
 def generator(sample_lines, batch_size):
     num_samples = len(sample_lines)
+    test = TestCase()
     while 1:
         lines = shuffle(sample_lines)
         for offset in range(0, num_samples, batch_size):
@@ -66,45 +70,65 @@ def generator(sample_lines, batch_size):
             images = []
             steering_angles = []
             for line in batch_lines:
-                (center_image_path, left_image_path, right_image_path, center_steering_angle, throttle, _break, speed) = line
+                (line_images, line_steering_angles) = preprocess(line)
+                test.assertAlmostEqual(sum(line_steering_angles), 0.0)
 
-                center_image = cv2.imread(center_image_path)
-                left_image = cv2.imread(left_image_path)
-                right_image = cv2.imread(right_image_path)
-                center_image_flipped = np.fliplr(center_image)
-
-                steering_correction_factor = 0.2 # this is a parameter to tune
-                left_steering_angle = center_steering_angle + steering_correction_factor
-                right_steering_angle = center_steering_angle - steering_correction_factor
-                center_steering_angle_flipped = -center_steering_angle
-
-                images.extend([center_image, left_image, right_image, center_image_flipped])
-                steering_angles.extend([center_steering_angle, left_steering_angle, right_steering_angle, center_steering_angle_flipped])
+                images.extend(line_images)
+                steering_angles.extend(line_steering_angles)
             X_train = np.array(images)
             y_train = np.array(steering_angles)
             yield X_train, y_train
+
+def preprocess(line):
+    (center_image_path, left_image_path, right_image_path, center_steering_angle, throttle, _break, speed) = line
+    def preprocess_images():
+        center = cv2.imread(center_image_path)
+        left = cv2.imread(left_image_path)
+        right = cv2.imread(right_image_path)
+
+        center_flipped = np.fliplr(center)
+        left_flipped = np.fliplr(left)
+        right_flipped = np.fliplr(right)
+        return [center, left, right,
+                center_flipped, left_flipped, right_flipped]
+
+    return (preprocess_images(), preprocess_steering_angles(center_steering_angle))
+
+def preprocess_steering_angles(center):
+    correction_factor = 0.1 # this is a parameter to tune
+    left = center + correction_factor
+    right = center - correction_factor
+
+    center_flipped = -center
+    left_flipped = -left
+    right_flipped = -right
+    return [center, left, right,
+            center_flipped, left_flipped, right_flipped]
 
 def NvidiaNet(input_shape):
     model = Sequential()
 
     def preprocess(image):
         return image/255 - 0.5
-    model.add(Cropping2D(cropping=((50,20), (0,0)), input_shape=input_shape))
-    model.add(Lambda(preprocess))
+    model.add(Cropping2D(cropping=((50,0), (0,0)), input_shape=input_shape))
+    model.add(Lambda(preprocess, input_shape=input_shape))
 
     model.add(Conv2D(3, (5, 5)))
+    model.add(Dropout(0.5))
     model.add(MaxPooling2D((2, 2)))
     model.add(Activation("relu"))
 
     model.add(Conv2D(24, (5, 5)))
-    model.add(MaxPooling2D((2, 2)))
+    model.add(MaxPooling2D((2, 2), padding="same"))
     model.add(Activation("relu"))
 
     model.add(Conv2D(36, (5, 5)))
     model.add(Dropout(0.5))
+    model.add(MaxPooling2D((2, 2), padding="same"))
     model.add(Activation("relu"))
 
-    model.add(Conv2D(48, (3, 3)))
+    model.add(Conv2D(48, (5, 3)))
+    model.add(MaxPooling2D((2, 2), padding="same"))
     model.add(Activation("relu"))
 
     model.add(Conv2D(64, (3, 3)))
@@ -119,7 +143,8 @@ def NvidiaNet(input_shape):
     return model
 
 def steps(samples, batch_size):
-    return (len(samples)+batch_size-1)/batch_size
+    #return (len(samples)+batch_size-1)/batch_size
+    return len(samples)/batch_size
 
 def parse_data_dirs():
     raw_dirs = FLAGS.data_dirs.split(",")
@@ -131,14 +156,26 @@ def parse_data_dirs():
 def parse_epochs():
     return FLAGS.epochs
 
-def main(_):
-    data_dirs = parse_data_dirs()
-    epochs = parse_epochs()
-    batch_size = 128
-    # pip install --upgrade tensorflow-gpu
-    # https://d17h27t6h515a5.cloudfront.net/topher/2016/December/584f6edd_data/data.zip
-    # Load data
-    sample_lines = load_from_dirs(data_dirs)
+def steering_angle_distribution(lines):
+    test = TestCase()
+    def steering_angles(line):
+        (center_image_path, left_image_path, right_image_path, center_steering_angle, throttle, _break, speed) = line
+        angles = preprocess_steering_angles(center_steering_angle)
+        test.assertAlmostEqual(sum(angles), 0.0)
+        #print("line_steering_angles: ", line_steering_angles)
+        return angles
+
+    steering_angles = list(flatmap(steering_angles, lines))
+    plt.hist(steering_angles)
+    plt.title("Steering Angle Distribution")
+    plt.xlabel("Angle")
+    plt.ylabel("Frequency")
+    plt.show()
+
+def flatmap(f, items):
+    return chain.from_iterable(map(f, items))
+
+def train(sample_lines, epochs, batch_size):
     train_sample_lines, validation_sample_lines = train_test_split(sample_lines, test_size=0.2)
     print("Samples(total: ", len(sample_lines), ", train: ", len(train_sample_lines), ", validation: ", len(validation_sample_lines), ")")
     train_generator = generator(train_sample_lines, batch_size=batch_size)
@@ -147,27 +184,37 @@ def main(_):
     model = NvidiaNet(input_shape=(160, 320, 3))
     optimizer = Adam(lr=0.001)
     model.compile(optimizer=optimizer, loss="mse")
-    # 1. Train model.
-    # 2. Output TensorBoard logs.
+    # Train model
     steps_per_epoch = steps(train_sample_lines, batch_size)
     validation_steps = steps(validation_sample_lines, batch_size)
-    tb_callback = TensorBoard(log_dir='./logs_v7', histogram_freq=0, write_graph=True, write_images=True)
+    model_file="model_v7-{epoch:02d}-{val_acc:.2f}.h5"
+    # Callbacks
+    cb_checkpoint = ModelCheckpoint(filepath=model_file)
+    cb_tensor_board = TensorBoard(log_dir='./logs', histogram_freq=0, write_graph=True, write_images=True)
+    cb_early_stopping = EarlyStopping(patience=1)
     model.fit_generator(
         generator=train_generator,
         steps_per_epoch=steps_per_epoch,
         epochs=epochs,
         validation_data=validation_generator,
         validation_steps=validation_steps,
-        callbacks=[tb_callback])
-    # Save model
-    model_file = "model_v7.h5"
-    model.save(model_file)
-    print("Saved model to: ", model_file)
+        callbacks=[cb_checkpoint, cb_tensor_board, cb_early_stopping])
     # Output model summary.
     print(model.summary())
-
     # Temporary fix - AttributeError: 'NoneType' object has no attribute 'TF_NewStatus
     K.clear_session()
+
+def main(_):
+    # pip install --upgrade tensorflow-gpu
+    # https://d17h27t6h515a5.cloudfront.net/topher/2016/December/584f6edd_data/data.zip
+    # Load data
+    data_dirs = parse_data_dirs()
+    epochs = parse_epochs()
+    sample_lines = load_from_dirs(data_dirs)
+
+    train(sample_lines = sample_lines, epochs=epochs, batch_size = 32)
+
+    #steering_angle_distribution(lines = sample_lines)
 
 # parses flags and calls the `main` function above
 if __name__ == '__main__':

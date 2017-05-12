@@ -13,7 +13,6 @@ from keras.layers.core import Dense, Flatten, Lambda, Activation, Dropout
 from keras.layers.convolutional import Conv2D, MaxPooling2D, Cropping2D
 from keras.optimizers import Adam
 from keras import backend as K
-from keras.callbacks import TensorBoard
 
 flags = tf.app.flags
 FLAGS = flags.FLAGS
