@@ -127,7 +127,7 @@ def NvidiaNet(input_shape):
     model.add(MaxPooling2D((2, 2), padding="same"))
     model.add(Activation("relu"))
 
-    model.add(Conv2D(48, (5, 3)))
+    model.add(Conv2D(48, (3, 3)))
     model.add(MaxPooling2D((2, 2), padding="same"))
     model.add(Activation("relu"))
 
