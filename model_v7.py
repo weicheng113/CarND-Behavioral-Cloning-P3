@@ -256,7 +256,7 @@ def train(samples, epochs, batch_size):
     # Build model
     model = NvidiaNet(input_shape=(160, 320, 3))
     optimizer = Adam(lr=0.001)
-    model.compile(optimizer=optimizer, loss="mse", metrics=['accuracy'])
+    model.compile(optimizer=optimizer, loss="mse")
     # Output model summary.
     print(model.summary())
     # Train model
