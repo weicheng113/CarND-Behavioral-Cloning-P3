@@ -275,7 +275,8 @@ def train(samples, epochs, batch_size):
         epochs=epochs,
         validation_data=validation_generator,
         validation_steps=validation_steps,
-        callbacks=[cb_checkpoint, cb_tensor_board, cb_early_stopping])
+        callbacks=[cb_checkpoint, cb_tensor_board, cb_early_stopping],
+        metrics=['accuracy'])
     # Temporary fix - AttributeError: 'NoneType' object has no attribute 'TF_NewStatus
     K.clear_session()
 
