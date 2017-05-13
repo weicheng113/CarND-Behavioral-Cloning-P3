@@ -260,7 +260,7 @@ def train(samples, epochs, batch_size):
     # Output model summary.
     print(model.summary())
     # Train model
-    steps_per_epoch = steps(train_samples, batch_size) * 2
+    steps_per_epoch = steps(train_samples, batch_size)
     validation_steps = steps(validation_samples, batch_size)
     # Callbacks
     model_file="model_v7-{epoch:02d}-{val_loss:.2f}.h5"
