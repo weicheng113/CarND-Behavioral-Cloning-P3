@@ -148,15 +148,15 @@ def equally_distributed_generator(samples, batch_size):
         yield X_train, y_train
 
 def alternating_generator(samples, batch_size):
-    alternating_flag = True
+    alternating_factor = 1
     gen1 = generator(samples, batch_size)
     gen2 = equally_distributed_generator(samples, batch_size)
     while True:
-       if alternating_flag:
+       if (alternating_factor % 3) > 0:
            yield next(gen1)
        else:
            yield next(gen2)
-       alternating_flag = not alternating_flag
+       alternating_factor = alternating_factor + 1
 
 def NvidiaNet(input_shape):
     model = Sequential()
@@ -166,7 +166,7 @@ def NvidiaNet(input_shape):
     model.add(Cropping2D(cropping=((50,20), (0,0)), input_shape=input_shape))
     model.add(Lambda(preprocess))
 
-    model.add(Conv2D(3, (5, 5)))
+    model.add(Conv2D(16, (5, 5)))
     model.add(Dropout(0.5))
     model.add(MaxPooling2D((2, 2)))
     model.add(Activation("relu"))
