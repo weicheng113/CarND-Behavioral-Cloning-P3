@@ -240,7 +240,6 @@ def flatmap(f, items):
 
 def train(samples, epochs, batch_size):
     train_samples, validation_samples = train_test_split(samples, test_size=0.2)
-    print("Sample split(train: ", len(train_samples), ", validation: ", len(validation_samples), ")")
     train_generator = equally_distributed_generator(train_samples, batch_size=batch_size)
     validation_generator = generator(validation_samples, batch_size=batch_size)
     # Build model
@@ -257,6 +256,8 @@ def train(samples, epochs, batch_size):
     cb_checkpoint = ModelCheckpoint(filepath=model_file, verbose=1)
     cb_tensor_board = TensorBoard(log_dir='./logs', histogram_freq=0, write_graph=True, write_images=True)
     cb_early_stopping = EarlyStopping(patience=1)
+
+    print("Sample split(train: ", len(train_samples), ", validation: ", len(validation_samples), ")")
     model.fit_generator(
         generator=train_generator,
         steps_per_epoch=steps_per_epoch,
