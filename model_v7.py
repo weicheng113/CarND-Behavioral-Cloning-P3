@@ -6,7 +6,10 @@ from sklearn.model_selection import train_test_split
 import tensorflow as tf
 import matplotlib.pyplot as plt
 from itertools import chain
+from functools import reduce
 from unittest import TestCase
+import pandas as pd
+from random import randint
 # TODO: import Keras layers you need here
 from keras.models import Sequential
 from keras.layers.core import Dense, Flatten, Lambda, Activation, Dropout
@@ -20,7 +23,27 @@ FLAGS = flags.FLAGS
 
 # command line flags
 flags.DEFINE_string('data_dirs', 'data', "Data directory list, separated by comma")
-flags.DEFINE_integer('epochs', 5, "Training epochs")
+flags.DEFINE_integer('epochs', 50, "Training epochs")
+
+class DrivingImage(object):
+    def __init__(self, path):
+        self.path = path
+    def load(self):
+        raise NotImplementedError
+
+class NormalImage(DrivingImage):
+    def __init__(self, path):
+        DrivingImage.__init__(self, path)
+    def load(self):
+        return cv2.imread(self.path)
+
+class FlippedImage(DrivingImage):
+    def __init__(self, path):
+        DrivingImage.__init__(self, path)
+
+    def load(self):
+        image = cv2.imread(self.path)
+        return np.fliplr(image)
 
 def load_from_dirs(data_dirs):
     combined_lines = []
@@ -59,51 +82,70 @@ def read_driving_log(filename):
             lines.append(line)
         return lines
 
-def generator(sample_lines, batch_size):
-    num_samples = len(sample_lines)
+def generator(samples, batch_size):
+    num_samples = len(samples)
     test = TestCase()
-    while 1:
-        lines = shuffle(sample_lines)
+    while True:
+        shuffled_samples = shuffle(samples)
         for offset in range(0, num_samples, batch_size):
-            batch_lines = lines[offset: offset + batch_size]
+            batch = shuffled_samples[offset: offset + batch_size]
 
             images = []
             steering_angles = []
-            for line in batch_lines:
-                (line_images, line_steering_angles) = preprocess(line)
-                test.assertAlmostEqual(sum(line_steering_angles), 0.0)
-
-                images.extend(line_images)
-                steering_angles.extend(line_steering_angles)
+            for pair in batch:
+                (driving_image, steering_angle) = pair
+                images.append(driving_image.load())
+                steering_angles.append(steering_angle)
             X_train = np.array(images)
             y_train = np.array(steering_angles)
             yield X_train, y_train
 
-def preprocess(line):
-    (center_image_path, left_image_path, right_image_path, center_steering_angle, throttle, _break, speed) = line
-    def preprocess_images():
-        center = cv2.imread(center_image_path)
-        left = cv2.imread(left_image_path)
-        right = cv2.imread(right_image_path)
+def make_partitions(samples, max_num_partitions):
+    df = pd.DataFrame(samples, columns=['image', 'steering_angle'])
+    max_angle = df['steering_angle'].max()
+    smaller_than_min_angle = df['steering_angle'].min() - 0.000001
 
-        center_flipped = np.fliplr(center)
-        left_flipped = np.fliplr(left)
-        right_flipped = np.fliplr(right)
-        return [center, left, right,
-                center_flipped, left_flipped, right_flipped]
+    boundaries = [np.linspace(smaller_than_min_angle, max_angle, max_num_partitions+1)[i: i + 2] for i in range(max_num_partitions)]
+    partitions = []
+    for boundary in boundaries:
+        start, end = boundary
+        partition = df[(df.steering_angle > start) & (df.steering_angle <= end)]
+        size = partition.shape[0]
+        if size > 0:
+            partitions.append(partition)
 
-    return (preprocess_images(), preprocess_steering_angles(center_steering_angle))
+    size = reduce(lambda acc, partition: acc + partition.shape[0], partitions, 0)
+    print("total partition size: ", size, ", sample len: ", len(samples))
+    assert(size == len(samples))
 
-def preprocess_steering_angles(center):
-    correction_factor = 0.1 # this is a parameter to tune
-    left = center + correction_factor
-    right = center - correction_factor
+    return partitions
 
-    center_flipped = -center
-    left_flipped = -left
-    right_flipped = -right
-    return [center, left, right,
-            center_flipped, left_flipped, right_flipped]
+def equally_distributed_generator(samples, batch_size):
+    shuffled_samples = shuffle(samples)
+    max_num_partitions = batch_size
+    partitions = make_partitions(shuffled_samples, max_num_partitions = max_num_partitions)
+    num_partitions = len(partitions)
+    assert(num_partitions <= max_num_partitions)
+
+    while True:
+        images = []
+        steering_angles = []
+        partition_index_increment = 2 # Any number greater than 0
+        data_index_increment = 0
+        for no_op in range(batch_size):
+            partition_index = partition_index_increment % num_partitions
+            partition = partitions[partition_index]
+            row = data_index_increment % partition.shape[0]
+            driving_image, steering_angle = partition.iloc[row]
+            images.append(driving_image.load())
+            steering_angles.append(steering_angle)
+            partition_index_increment = partition_index_increment + 1
+            if(partition_index == 0):
+                data_index_increment = data_index_increment + 1
+
+        X_train = np.array(images)
+        y_train = np.array(steering_angles)
+        yield X_train, y_train
 
 def NvidiaNet(input_shape):
     model = Sequential()
@@ -156,16 +198,37 @@ def parse_data_dirs():
 def parse_epochs():
     return FLAGS.epochs
 
-def steering_angle_distribution(lines):
-    test = TestCase()
-    def steering_angles(line):
+def transform(lines):
+    def transform_line(line):
         (center_image_path, left_image_path, right_image_path, center_steering_angle, throttle, _break, speed) = line
-        angles = preprocess_steering_angles(center_steering_angle)
-        test.assertAlmostEqual(sum(angles), 0.0)
-        #print("line_steering_angles: ", line_steering_angles)
-        return angles
 
-    steering_angles = list(flatmap(steering_angles, lines))
+        angle_correction_factor = 0.2 # this is a parameter to tune
+        left_steering_angle = center_steering_angle + angle_correction_factor
+        right_steering_angle = center_steering_angle - angle_correction_factor
+
+        return [(center_image_path, center_steering_angle),
+                (left_image_path, left_steering_angle),
+                (right_image_path, right_steering_angle)]
+
+    image_steering_angle_pairs = list(flatmap(transform_line, lines))
+    return image_steering_angle_pairs
+
+def augment(samples):
+    def normal_and_flipped(pair):
+        image_path, steering_angle = pair
+        return [(NormalImage(image_path), steering_angle), (FlippedImage(image_path), -steering_angle)]
+
+    pairs = list(flatmap(normal_and_flipped, samples))
+    return pairs
+
+def steering_angle_distribution(samples):
+    steering_angles = list(map(lambda pair: pair[1], samples))
+
+    test = TestCase()
+    test.assertAlmostEqual(sum(steering_angles), 0.0)
+    show_steering_angle_distribution(steering_angles)
+
+def show_steering_angle_distribution(steering_angles):
     plt.hist(steering_angles)
     plt.title("Steering Angle Distribution")
     plt.xlabel("Angle")
@@ -175,18 +238,20 @@ def steering_angle_distribution(lines):
 def flatmap(f, items):
     return chain.from_iterable(map(f, items))
 
-def train(sample_lines, epochs, batch_size):
-    train_sample_lines, validation_sample_lines = train_test_split(sample_lines, test_size=0.2)
-    print("Samples(total: ", len(sample_lines), ", train: ", len(train_sample_lines), ", validation: ", len(validation_sample_lines), ")")
-    train_generator = generator(train_sample_lines, batch_size=batch_size)
-    validation_generator = generator(validation_sample_lines, batch_size=batch_size)
+def train(samples, epochs, batch_size):
+    train_samples, validation_samples = train_test_split(samples, test_size=0.2)
+    print("Sample split(train: ", len(train_samples), ", validation: ", len(validation_samples), ")")
+    train_generator = equally_distributed_generator(train_samples, batch_size=batch_size)
+    validation_generator = generator(validation_samples, batch_size=batch_size)
     # Build model
     model = NvidiaNet(input_shape=(160, 320, 3))
     optimizer = Adam(lr=0.001)
     model.compile(optimizer=optimizer, loss="mse")
+    # Output model summary.
+    print(model.summary())
     # Train model
-    steps_per_epoch = steps(train_sample_lines, batch_size)
-    validation_steps = steps(validation_sample_lines, batch_size)
+    steps_per_epoch = steps(train_samples, batch_size) * 2
+    validation_steps = steps(validation_samples, batch_size)
     # Callbacks
     model_file="model_v7-{epoch:02d}-{val_loss:.2f}.h5"
     cb_checkpoint = ModelCheckpoint(filepath=model_file, verbose=1)
@@ -199,10 +264,16 @@ def train(sample_lines, epochs, batch_size):
         validation_data=validation_generator,
         validation_steps=validation_steps,
         callbacks=[cb_checkpoint, cb_tensor_board, cb_early_stopping])
-    # Output model summary.
-    print(model.summary())
     # Temporary fix - AttributeError: 'NoneType' object has no attribute 'TF_NewStatus
     K.clear_session()
+
+def test_equally_distributed_generator(samples, batch_size):
+    gen = equally_distributed_generator(samples, batch_size)
+    steering_angles_100_batches = []
+    for i in range(100):
+        images, steering_angles = next(gen)
+        steering_angles_100_batches.extend(steering_angles)
+    show_steering_angle_distribution(steering_angles_100_batches)
 
 def main(_):
     # pip install --upgrade tensorflow-gpu
@@ -210,12 +281,15 @@ def main(_):
     # Load data
     data_dirs = parse_data_dirs()
     epochs = parse_epochs()
-    sample_lines = load_from_dirs(data_dirs)
+    lines = load_from_dirs(data_dirs)
+    samples = transform(lines)
+    augmented_samples = augment(samples)
+    print("Samples(total lines: ", len(lines), ", augmented total: ", len(augmented_samples), ")")
 
-    train(sample_lines = sample_lines, epochs=epochs, batch_size = 32)
+    train(samples = augmented_samples, epochs=epochs, batch_size = 128)
 
-    #steering_angle_distribution(lines = sample_lines)
-
+    #steering_angle_distribution(samples = augmented_samples)
+    #test_equally_distributed_generator(samples=augmented_samples, batch_size=128)
 # parses flags and calls the `main` function above
 if __name__ == '__main__':
     tf.app.run()
