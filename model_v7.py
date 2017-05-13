@@ -147,6 +147,17 @@ def equally_distributed_generator(samples, batch_size):
         y_train = np.array(steering_angles)
         yield X_train, y_train
 
+def alternating_generator(samples, batch_size):
+    alternating_flag = True
+    gen1 = generator(samples, batch_size)
+    gen2 = equally_distributed_generator(samples, batch_size)
+    while True:
+       if alternating_flag:
+           yield next(gen1)
+       else:
+           yield next(gen2)
+       alternating_flag = not alternating_flag
+
 def NvidiaNet(input_shape):
     model = Sequential()
 
@@ -240,7 +251,7 @@ def flatmap(f, items):
 
 def train(samples, epochs, batch_size):
     train_samples, validation_samples = train_test_split(samples, test_size=0.2)
-    train_generator = equally_distributed_generator(train_samples, batch_size=batch_size)
+    train_generator = alternating_generator(train_samples, batch_size=batch_size)
     validation_generator = generator(validation_samples, batch_size=batch_size)
     # Build model
     model = NvidiaNet(input_shape=(160, 320, 3))
