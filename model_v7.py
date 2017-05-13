@@ -256,7 +256,7 @@ def train(samples, epochs, batch_size):
     # Build model
     model = NvidiaNet(input_shape=(160, 320, 3))
     optimizer = Adam(lr=0.001)
-    model.compile(optimizer=optimizer, loss="mse")
+    model.compile(optimizer=optimizer, loss="mse", metrics=['accuracy'])
     # Output model summary.
     print(model.summary())
     # Train model
@@ -275,8 +275,7 @@ def train(samples, epochs, batch_size):
         epochs=epochs,
         validation_data=validation_generator,
         validation_steps=validation_steps,
-        callbacks=[cb_checkpoint, cb_tensor_board, cb_early_stopping],
-        metrics=['accuracy'])
+        callbacks=[cb_checkpoint, cb_tensor_board, cb_early_stopping])
     # Temporary fix - AttributeError: 'NoneType' object has no attribute 'TF_NewStatus
     K.clear_session()
 
