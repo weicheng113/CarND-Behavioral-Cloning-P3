@@ -158,7 +158,7 @@ def alternating_generator(samples, batch_size):
            yield next(gen2)
        alternating_factor = alternating_factor + 1
 def clahe(image):
-    lab= cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
+    lab= cv2.cvtColor(np.array(image), cv2.COLOR_BGR2LAB)
     #-----Splitting the LAB image to different channels-------------------------
     l, a, b = cv2.split(lab)
 
