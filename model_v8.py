@@ -158,6 +158,7 @@ def alternating_generator(samples, batch_size):
            yield next(gen2)
        alternating_factor = alternating_factor + 1
 def clahe(image):
+    print("image type", type(image))
     lab= cv2.cvtColor(np.array(image), cv2.COLOR_BGR2LAB)
     #-----Splitting the LAB image to different channels-------------------------
     l, a, b = cv2.split(lab)
@@ -179,7 +180,7 @@ def NvidiaNet(input_shape):
     def preprocess(image):
         return image/255 - 0.5
     model.add(Cropping2D(cropping=((50,20), (0,0)), input_shape=input_shape))
-    model.add(Lambda(clahe))
+    #model.add(Lambda(clahe))
     model.add(Lambda(preprocess))
 
     model.add(Conv2D(3, (5, 5)))
