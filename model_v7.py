@@ -48,6 +48,11 @@ class FlippedImage(DrivingImage):
         return np.fliplr(rgb)
 
 def load_from_dirs(data_dirs):
+    """
+    Return a list of tuples. Each tuple represents a line in driving log csv under given directory set.
+    
+    Parse the driving log csv in the given directory set and combine the result.
+    """
     combined_lines = []
     for data_dir in data_dirs:
         lines = load_from_dir(data_dir)
@@ -55,6 +60,11 @@ def load_from_dirs(data_dirs):
     return combined_lines
 
 def load_from_dir(data_dir):
+    """
+    Return a list of tuples. Each tuple represents a line in driving log csv under given directory.
+    
+    Parse the driving log csv in the given directory.
+    """
     driving_log = data_dir + "/driving_log.csv"
     image_dir = data_dir + "/IMG"
     print("Loading data(driving log file: ", driving_log, ", image directory: ", image_dir, ")")
@@ -65,6 +75,11 @@ def load_from_dir(data_dir):
     return lines
 
 def parse_driving_log_line(line, image_dir):
+    """
+    Return a tuple containing - Center Image, Left Image, Right Image, Steering Angle, Throttle, Break, Speed.
+    
+    Parse given line and replace the image directory.
+    """
     # Format: Center Image, Left Image, Right Image, Steering Angle, Throttle, Break, Speed
     [center_image_path, left_image_path, right_image_path, steering_angle, throttle, _break, speed] = line
     def map_path(path):
@@ -73,6 +88,11 @@ def parse_driving_log_line(line, image_dir):
     return (map_path(center_image_path), map_path(left_image_path), map_path(right_image_path), float(steering_angle), throttle, _break, speed)
 
 def read_driving_log(filename):
+    """
+    Return a list of lines in given csv file.
+    
+    Read lines from the given csv file.
+    """
     lines = []
     with open(filename) as csvfile:
         has_header = csv.Sniffer().has_header(csvfile.read(1024))
@@ -85,6 +105,11 @@ def read_driving_log(filename):
         return lines
 
 def generator(samples, batch_size):
+    """
+    Return a generator and in each iteration, it returns a batch of images and their steering angles.
+    
+    Normal generator only load a batch of images at a time, which is to avoid out-of-memory issue.
+    """
     num_samples = len(samples)
     test = TestCase()
     while True:
@@ -103,6 +128,11 @@ def generator(samples, batch_size):
             yield X_train, y_train
 
 def make_partitions(samples, max_num_partitions):
+    """
+    Return partitions.
+    
+    Partition samples by angles. Used by equally_distributed_generator function.
+    """
     df = pd.DataFrame(samples, columns=['image', 'steering_angle'])
     max_angle = df['steering_angle'].max()
     smaller_than_min_angle = df['steering_angle'].min() - 0.000001
@@ -123,6 +153,13 @@ def make_partitions(samples, max_num_partitions):
     return partitions
 
 def equally_distributed_generator(samples, batch_size):
+    """
+    Return a generator and in each iteration, it returns a batch of images and their steering angles.
+    
+    Equally distributed generator tries to provide balanced sample data from different steering angles to overcome data bias.
+    Normally, the data contains more steering angles near the center 0 and bigger angles are fewer, 
+    which may result in biased mode.
+    """
     shuffled_samples = shuffle(samples)
     max_num_partitions = batch_size
     partitions = make_partitions(shuffled_samples, max_num_partitions = max_num_partitions)
@@ -150,6 +187,12 @@ def equally_distributed_generator(samples, batch_size):
         yield X_train, y_train
 
 def alternating_generator(samples, batch_size):
+    """
+    Return a generator and in each iteration, it returns a batch of images and their steering angles.
+    
+    The goal of alternating generator is to balance between sample data coverage and data equal distribution.
+    It will alternate to pick patches from normal generator and equally distributed generator based on alternating factor.
+    """
     alternating_factor = 1
     gen1 = generator(samples, batch_size)
     gen2 = equally_distributed_generator(samples, batch_size)
@@ -161,6 +204,9 @@ def alternating_generator(samples, batch_size):
        alternating_factor = alternating_factor + 1
 
 def NvidiaNet(input_shape):
+    """
+    Return a model consists of 5 conv layers and 4 full connected layers.
+    """
     model = Sequential()
 
     def preprocess(image):
@@ -212,6 +258,12 @@ def parse_epochs():
     return FLAGS.epochs
 
 def transform(lines):
+    """
+    Return a new list of tuples. Each tuple contains image and its steering angle.
+    
+    It performs some data augmentation from original driving_log csv lines, 
+    which includes left and right images with angle correction factor and image flipping.
+    """
     def transform_line(line):
         (center_image_path, left_image_path, right_image_path, center_steering_angle, throttle, _break, speed) = line
         bigger_correction_factor = 0.3
@@ -231,17 +283,13 @@ def transform(lines):
                     (left_image_path, left_steering_angle),
                     (right_image_path, right_steering_angle)]
 
-
-    image_steering_angle_pairs = list(flatmap(transform_line, lines))
-    return image_steering_angle_pairs
-
-def augment(samples):
     def normal_and_flipped(pair):
         image_path, steering_angle = pair
         return [(NormalImage(image_path), steering_angle), (FlippedImage(image_path), -steering_angle)]
 
-    pairs = list(flatmap(normal_and_flipped, samples))
-    return pairs
+    image_steering_angle_pairs = list(flatmap(transform_line, lines))
+    pairs_with_flipped = list(flatmap(normal_and_flipped, image_steering_angle_pairs))
+    return pairs_with_flipped
 
 def steering_angle_distribution(samples):
     steering_angles = list(map(lambda pair: pair[1], samples))
@@ -261,24 +309,32 @@ def flatmap(f, items):
     return chain.from_iterable(map(f, items))
 
 def train(samples, epochs, batch_size):
+    # Prepare samples.
     train_samples, validation_samples = train_test_split(shuffle(samples), test_size=0.2)
     #train_generator = alternating_generator(train_samples, batch_size=batch_size)
     train_generator = generator(train_samples, batch_size=batch_size)
     validation_generator = generator(validation_samples, batch_size=batch_size)
+
     # Build model
     model = NvidiaNet(input_shape=(160, 320, 3))
     optimizer = Adam(lr=0.001)
     model.compile(optimizer=optimizer, loss="mse")
+
     # Output model summary.
     print(model.summary())
-    # Train model
-    steps_per_epoch = steps(train_samples, batch_size)
-    validation_steps = steps(validation_samples, batch_size)
-    # Callbacks
+
+    # Callbacks:
+    # a. Checkpoint to save model at each epochs.
+    # b. TersorBoard to save TensorBoard logs.
+    # c. EarlyStopping to stop the training when there is no improvement in certain number of epochs.
     model_file="model_v7-{epoch:02d}-{val_loss:.2f}.h5"
     cb_checkpoint = ModelCheckpoint(filepath=model_file, verbose=1)
     cb_tensor_board = TensorBoard(log_dir='./logs', histogram_freq=0, write_graph=True, write_images=True)
     cb_early_stopping = EarlyStopping(patience=1)
+
+    # Train model
+    steps_per_epoch = steps(train_samples, batch_size)
+    validation_steps = steps(validation_samples, batch_size)
 
     print("Sample split(train: ", len(train_samples), ", validation: ", len(validation_samples), ")")
     model.fit_generator(
@@ -288,6 +344,7 @@ def train(samples, epochs, batch_size):
         validation_data=validation_generator,
         validation_steps=validation_steps,
         callbacks=[cb_checkpoint, cb_tensor_board, cb_early_stopping])
+
     # Temporary fix - AttributeError: 'NoneType' object has no attribute 'TF_NewStatus
     K.clear_session()
 
@@ -307,13 +364,12 @@ def main(_):
     epochs = parse_epochs()
     lines = load_from_dirs(data_dirs)
     samples = transform(lines)
-    augmented_samples = augment(samples)
-    print("Samples(total lines: ", len(lines), ", augmented total: ", len(augmented_samples), ")")
+    print("Samples(total lines: ", len(lines), ", sample total: ", len(samples), ")")
 
-    train(samples = augmented_samples, epochs=epochs, batch_size = 128)
+    train(samples = samples, epochs=epochs, batch_size = 128)
 
-    #steering_angle_distribution(samples = augmented_samples)
-    #test_equally_distributed_generator(samples=augmented_samples, batch_size=128)
+    #steering_angle_distribution(samples = samples)
+    #test_equally_distributed_generator(samples=samples, batch_size=128)
 # parses flags and calls the `main` function above
 if __name__ == '__main__':
     tf.app.run()

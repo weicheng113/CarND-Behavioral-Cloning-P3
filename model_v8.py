@@ -35,15 +35,48 @@ class NormalImage(DrivingImage):
     def __init__(self, path):
         DrivingImage.__init__(self, path)
     def load(self):
-        return cv2.imread(self.path)
+        image = cv2.imread(self.path)
+        return cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
 class FlippedImage(DrivingImage):
     def __init__(self, path):
         DrivingImage.__init__(self, path)
 
     def load(self):
-        image = cv2.imread(self.path)
-        return np.fliplr(image)
+        bgr = cv2.imread(self.path)
+        rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
+        return np.fliplr(rgb)
+
+class RandomShadowImage(DrivingImage):
+    def __init__(self, driving_image):
+        DrivingImage.__init__(self, driving_image.path)
+        self.driving_image = driving_image
+
+    def load(self):
+        image = self.driving_image.load()
+        return self.random_shadow(image)
+
+    def random_shadow(self, image):
+        top_y = image.shape[1] * np.random.uniform()
+        top_x = 0
+        bot_x = image.shape[0]
+        bot_y = image.shape[1] * np.random.uniform()
+        image_hls = cv2.cvtColor(image, cv2.COLOR_RGB2HLS)
+        shadow_mask = 0 * image_hls[:, :, 1]
+        X_m = np.mgrid[0:image.shape[0], 0:image.shape[1]][0]
+        Y_m = np.mgrid[0:image.shape[0], 0:image.shape[1]][1]
+
+        shadow_mask[((X_m - top_x) * (bot_y - top_y) - (bot_x - top_x) * (Y_m - top_y) >= 0)] = 1
+        if np.random.randint(2) == 1:
+            random_bright = .5
+            cond1 = shadow_mask == 1
+            cond0 = shadow_mask == 0
+            if np.random.randint(2) == 1:
+                image_hls[:, :, 1][cond1] = image_hls[:, :, 1][cond1] * random_bright
+            else:
+                image_hls[:, :, 1][cond0] = image_hls[:, :, 1][cond0] * random_bright
+        result = cv2.cvtColor(image_hls, cv2.COLOR_HLS2RGB)
+        return result
 
 def load_from_dirs(data_dirs):
     combined_lines = []
@@ -244,7 +277,7 @@ def transform(lines):
 def augment(samples):
     def normal_and_flipped(pair):
         image_path, steering_angle = pair
-        return [(NormalImage(image_path), steering_angle), (FlippedImage(image_path), -steering_angle)]
+        return [(RandomShadowImage(NormalImage(image_path)), steering_angle), (RandomShadowImage(FlippedImage(image_path)), -steering_angle)]
 
     pairs = list(flatmap(normal_and_flipped, samples))
     return pairs
@@ -267,12 +300,14 @@ def flatmap(f, items):
     return chain.from_iterable(map(f, items))
 
 def train(samples, epochs, batch_size):
-    train_samples, validation_samples = train_test_split(samples, test_size=0.2)
-    train_generator = alternating_generator(train_samples, batch_size=batch_size)
-    validation_generator = alternating_generator(validation_samples, batch_size=batch_size)
+    train_samples, validation_samples = train_test_split(shuffle(samples), test_size=0.2)
+    #train_generator = alternating_generator(train_samples, batch_size=batch_size)
+    #validation_generator = alternating_generator(validation_samples, batch_size=batch_size)
+    train_generator = generator(train_samples, batch_size=batch_size)
+    validation_generator = generator(validation_samples, batch_size=batch_size)
     # Build model
     model = NvidiaNet(input_shape=(160, 320, 3))
-    optimizer = Adam(lr=0.001)
+    optimizer = Adam() #Adam(lr=0.001)
     model.compile(optimizer=optimizer, loss="mse")
     # Output model summary.
     print(model.summary())

@@ -1,2 +1,17 @@
 python model.py --data_dirs "my-data1, my-data2" --epochs 1
 python model.py --data_dirs "data, center1, recovery1, recovery2, curves1, counter-clockwise1" --epochs 1
+python model_v6.py --data_dirs "mydata1, counter-clockwise1, counter-clockwise2, curves1, curves2"
+python model_v7.py --data_dirs "data, mydata1, center1, counter-clockwise1, counter-clockwise2, curves1, curves2" --epochs 10
+python model_v7.py --data_dirs "data, counter-clockwise2, curves1, curves2, problem1, problem2"
+
+python model_v7.py --data_dirs "mydata1, counter-clockwise2, curves1, curves2"
+python model_v8.py --data_dirs "right1, right2, counter-right1"
+
+python drive.py model_v8
+
+
+-----------------------------working---------------------------------------
+70% perfect; model_v7-00-0.02_working.h5 - python model_v7.py --data_dirs "data, counter-clockwise2, curves1, curves2, problem1" #with alternating generator
+
+50% perfect; model_v7-02-0.01_working.h5 - python model_v7.py --data_dirs "data, counter-clockwise2, curves1, curves2, problem1, problem2"
+ loss: 0.0078 - val_loss: 0.0134
