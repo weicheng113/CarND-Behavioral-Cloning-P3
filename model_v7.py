@@ -43,9 +43,9 @@ class FlippedImage(DrivingImage):
         DrivingImage.__init__(self, path)
 
     def load(self):
-        image = cv2.imread(self.path)
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        return np.fliplr(image)
+        bgr = cv2.imread(self.path)
+        rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
+        return np.fliplr(rgb)
 
 def load_from_dirs(data_dirs):
     combined_lines = []
@@ -214,14 +214,23 @@ def parse_epochs():
 def transform(lines):
     def transform_line(line):
         (center_image_path, left_image_path, right_image_path, center_steering_angle, throttle, _break, speed) = line
+        bigger_correction_factor = 0.3
+        smaller_correction_factor = 0.06
+        if abs(center_steering_angle) < 0.05:
+            left_steering_angle = center_steering_angle + smaller_correction_factor
+            right_steering_angle = center_steering_angle - smaller_correction_factor
 
-        angle_correction_factor = 0.2 # this is a parameter to tune
-        left_steering_angle = center_steering_angle + angle_correction_factor
-        right_steering_angle = center_steering_angle - angle_correction_factor
+            return [(center_image_path, center_steering_angle),
+                    (left_image_path, left_steering_angle),
+                    (right_image_path, right_steering_angle)]
+        else:
+            left_steering_angle = center_steering_angle + bigger_correction_factor
+            right_steering_angle = center_steering_angle - bigger_correction_factor
 
-        return [(center_image_path, center_steering_angle),
-                (left_image_path, left_steering_angle),
-                (right_image_path, right_steering_angle)]
+            return [(center_image_path, center_steering_angle),
+                    (left_image_path, left_steering_angle),
+                    (right_image_path, right_steering_angle)]
+
 
     image_steering_angle_pairs = list(flatmap(transform_line, lines))
     return image_steering_angle_pairs
