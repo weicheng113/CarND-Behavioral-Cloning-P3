@@ -35,7 +35,8 @@ class NormalImage(DrivingImage):
     def __init__(self, path):
         DrivingImage.__init__(self, path)
     def load(self):
-        return cv2.imread(self.path)
+        image = cv2.imread(self.path)
+        return cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
 class FlippedImage(DrivingImage):
     def __init__(self, path):
@@ -43,6 +44,7 @@ class FlippedImage(DrivingImage):
 
     def load(self):
         image = cv2.imread(self.path)
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         return np.fliplr(image)
 
 def load_from_dirs(data_dirs):
@@ -250,8 +252,9 @@ def flatmap(f, items):
     return chain.from_iterable(map(f, items))
 
 def train(samples, epochs, batch_size):
-    train_samples, validation_samples = train_test_split(samples, test_size=0.2)
-    train_generator = alternating_generator(train_samples, batch_size=batch_size)
+    train_samples, validation_samples = train_test_split(shuffle(samples), test_size=0.2)
+    #train_generator = alternating_generator(train_samples, batch_size=batch_size)
+    train_generator = generator(train_samples, batch_size=batch_size)
     validation_generator = generator(validation_samples, batch_size=batch_size)
     # Build model
     model = NvidiaNet(input_shape=(160, 320, 3))
