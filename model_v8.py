@@ -157,6 +157,21 @@ def alternating_generator(samples, batch_size):
        else:
            yield next(gen2)
        alternating_factor = alternating_factor + 1
+def clahe(image):
+    lab= cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
+    #-----Splitting the LAB image to different channels-------------------------
+    l, a, b = cv2.split(lab)
+
+    #-----Applying CLAHE to L-channel-------------------------------------------
+    clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8,8))
+    cl = clahe.apply(l)
+
+    #-----Merge the CLAHE enhanced L-channel with the a and b channel-----------
+    limg = cv2.merge((cl,a,b))
+
+    #-----Converting image from LAB Color model to RGB model--------------------
+    final = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
+    return final
 
 def NvidiaNet(input_shape):
     model = Sequential()
@@ -164,11 +179,12 @@ def NvidiaNet(input_shape):
     def preprocess(image):
         return image/255 - 0.5
     model.add(Cropping2D(cropping=((50,20), (0,0)), input_shape=input_shape))
+    model.add(Lambda(clahe))
     model.add(Lambda(preprocess))
 
     model.add(Conv2D(3, (5, 5)))
     model.add(Dropout(0.5))
-    model.add(MaxPooling2D((2, 2)))
+    model.add(MaxPooling2D((2, 2), padding="same"))
     model.add(Activation("relu"))
 
     model.add(Conv2D(24, (5, 5)))
@@ -185,7 +201,6 @@ def NvidiaNet(input_shape):
     model.add(Activation("relu"))
 
     model.add(Conv2D(64, (3, 3)))
-    model.add(Dropout(0.5))
     model.add(Activation("relu"))
 
     model.add(Flatten())
