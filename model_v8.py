@@ -337,8 +337,8 @@ def flatmap(f, items):
 def train(samples, epochs, batch_size):
     # Prepare samples.
     train_samples, validation_samples = train_test_split(shuffle(samples), test_size=0.2)
-    #train_generator = alternating_generator(train_samples, batch_size=batch_size)
-    train_generator = generator(train_samples, batch_size=batch_size)
+    train_generator = alternating_generator(train_samples, batch_size=batch_size)
+    #train_generator = generator(train_samples, batch_size=batch_size)
     validation_generator = generator(validation_samples, batch_size=batch_size)
 
     # Build model
@@ -353,7 +353,7 @@ def train(samples, epochs, batch_size):
     # a. Checkpoint to save model at each epochs.
     # b. TersorBoard to save TensorBoard logs.
     # c. EarlyStopping to stop the training when there is no improvement in certain number of epochs.
-    model_file="model_v7-{epoch:02d}-{val_loss:.2f}.h5"
+    model_file="model_v8-{epoch:02d}-{val_loss:.2f}.h5"
     cb_checkpoint = ModelCheckpoint(filepath=model_file, verbose=1)
     cb_tensor_board = TensorBoard(log_dir='./logs', histogram_freq=0, write_graph=True, write_images=True)
     cb_early_stopping = EarlyStopping(patience=1)
