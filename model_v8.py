@@ -40,7 +40,7 @@ class FlippedImage(DrivingImage):
     def load(self):
         image = super().load()
         flipped = np.fliplr(image)
-        return np.fliplr(rgb)
+        return flipped
 
 class RandomShadowImage(DrivingImage):
     def __init__(self, driving_image):
@@ -311,7 +311,7 @@ def transform(lines):
 
     def normal_and_flipped(pair):
         image_path, steering_angle = pair
-        return [(RandomShadowImage(DrivingImage(image_path)), steering_angle), (RandomShadowImage(FlippedImage(image_path), -steering_angle))]
+        return [(RandomShadowImage(DrivingImage(image_path)), steering_angle), (RandomShadowImage(FlippedImage(image_path)), -steering_angle)]
 
     image_steering_angle_pairs = list(flatmap(transform_line, lines))
     pairs_with_flipped = list(flatmap(normal_and_flipped, image_steering_angle_pairs))
