@@ -17,6 +17,7 @@ from keras.layers.convolutional import Conv2D, MaxPooling2D, Cropping2D
 from keras.optimizers import Adam
 from keras import backend as K
 from keras.callbacks import TensorBoard, ModelCheckpoint, EarlyStopping
+from image_processing import random_shadow, contrast_image
 
 flags = tf.app.flags
 FLAGS = flags.FLAGS
@@ -42,6 +43,14 @@ class FlippedImage(DrivingImage):
         flipped = np.fliplr(image)
         return flipped
 
+class ContrastImage(DrivingImage):
+    def __init__(self, path):
+        DrivingImage.__init__(self, path)
+
+    def load(self):
+        image = super().load()
+        return contrast_image(image)
+
 class RandomShadowImage(DrivingImage):
     def __init__(self, driving_image):
         DrivingImage.__init__(self, driving_image.path)
@@ -49,29 +58,7 @@ class RandomShadowImage(DrivingImage):
 
     def load(self):
         image = self.driving_image.load()
-        return self.random_shadow(image)
-
-    def random_shadow(self, image):
-        top_y = image.shape[1] * np.random.uniform()
-        top_x = 0
-        bot_x = image.shape[0]
-        bot_y = image.shape[1] * np.random.uniform()
-        image_hls = cv2.cvtColor(image, cv2.COLOR_RGB2HLS)
-        shadow_mask = 0 * image_hls[:, :, 1]
-        X_m = np.mgrid[0:image.shape[0], 0:image.shape[1]][0]
-        Y_m = np.mgrid[0:image.shape[0], 0:image.shape[1]][1]
-
-        shadow_mask[((X_m - top_x) * (bot_y - top_y) - (bot_x - top_x) * (Y_m - top_y) >= 0)] = 1
-        if np.random.randint(2) == 1:
-            random_bright = .5
-            cond1 = shadow_mask == 1
-            cond0 = shadow_mask == 0
-            if np.random.randint(2) == 1:
-                image_hls[:, :, 1][cond1] = image_hls[:, :, 1][cond1] * random_bright
-            else:
-                image_hls[:, :, 1][cond0] = image_hls[:, :, 1][cond0] * random_bright
-        result = cv2.cvtColor(image_hls, cv2.COLOR_HLS2RGB)
-        return result
+        return random_shadow(image)
 
 def load_from_dirs(data_dirs):
     """
@@ -311,7 +298,8 @@ def transform(lines):
 
     def normal_and_flipped(pair):
         image_path, steering_angle = pair
-        return [(RandomShadowImage(DrivingImage(image_path)), steering_angle), (RandomShadowImage(FlippedImage(image_path)), -steering_angle)]
+        return [(RandomShadowImage(ContrastImage(DrivingImage(image_path))), steering_angle),
+                (RandomShadowImage(ContrastImage(FlippedImage(image_path))), -steering_angle)]
 
     image_steering_angle_pairs = list(flatmap(transform_line, lines))
     pairs_with_flipped = list(flatmap(normal_and_flipped, image_steering_angle_pairs))
