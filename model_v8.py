@@ -44,11 +44,12 @@ class FlippedImage(DrivingImage):
         return flipped
 
 class ContrastImage(DrivingImage):
-    def __init__(self, path):
-        DrivingImage.__init__(self, path)
+    def __init__(self, driving_image):
+        DrivingImage.__init__(self, driving_image.path)
+        self.driving_image = driving_image
 
     def load(self):
-        image = super().load()
+        image = self.driving_image.load()
         return contrast_image(image)
 
 class RandomShadowImage(DrivingImage):
