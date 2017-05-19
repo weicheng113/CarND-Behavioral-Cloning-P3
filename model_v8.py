@@ -331,7 +331,7 @@ def train(samples, epochs, batch_size):
 
     # Build model
     model = NvidiaNet(input_shape=(160, 320, 3))
-    optimizer = Adam(lr=0.001)
+    optimizer = Adam() #Adam(lr=0.001)
     model.compile(optimizer=optimizer, loss="mse")
 
     # Output model summary.
@@ -344,7 +344,7 @@ def train(samples, epochs, batch_size):
     model_file="model_v8-{epoch:02d}-{val_loss:.2f}.h5"
     cb_checkpoint = ModelCheckpoint(filepath=model_file, verbose=1)
     cb_tensor_board = TensorBoard(log_dir='./logs', histogram_freq=0, write_graph=True, write_images=True)
-    cb_early_stopping = EarlyStopping(patience=1)
+    cb_early_stopping = EarlyStopping(patience=2)
 
     # Train model
     steps_per_epoch = steps(train_samples, batch_size)
