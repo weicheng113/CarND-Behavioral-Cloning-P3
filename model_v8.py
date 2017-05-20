@@ -276,7 +276,7 @@ def transform(lines):
         #         (left_image_path, left_steering_angle),
         #         (right_image_path, right_steering_angle)]
         bigger_correction_factor = 0.4
-        smaller_correction_factor = 0.09
+        smaller_correction_factor = 0.06
         if abs(center_steering_angle) < 0.05:
             left_steering_angle = center_steering_angle + smaller_correction_factor
             right_steering_angle = center_steering_angle - smaller_correction_factor
