@@ -228,31 +228,18 @@ def NvidiaNet(input_shape):
     model.add(Cropping2D(cropping=((50,20), (0,0)), input_shape=input_shape))
     model.add(Lambda(preprocess))
 
-    model.add(Conv2D(16, (5, 5)))
+    model.add(Conv2D(16, (5, 5), strides=(2, 2), activation='elu'))
+    model.add(Conv2D(24, (5, 5), strides=(2, 2), activation='elu'))
+    model.add(Conv2D(36, (5, 5), strides=(2, 2), activation='elu'))
+    model.add(Conv2D(48, (3, 3), activation='elu'))
+    model.add(Conv2D(64, (3, 3), activation='elu'))
+
     model.add(Dropout(0.5))
-    model.add(MaxPooling2D((2, 2)))
-    model.add(Activation("relu"))
-
-    model.add(Conv2D(24, (5, 5)))
-    model.add(MaxPooling2D((2, 2), padding="same"))
-    model.add(Activation("relu"))
-
-    model.add(Conv2D(36, (5, 5)))
-    model.add(Dropout(0.5))
-    model.add(MaxPooling2D((2, 2), padding="same"))
-    model.add(Activation("relu"))
-
-    model.add(Conv2D(48, (3, 3)))
-    model.add(MaxPooling2D((2, 2), padding="same"))
-    model.add(Activation("relu"))
-
-    model.add(Conv2D(64, (3, 3)))
-    model.add(Activation("relu"))
 
     model.add(Flatten())
-    model.add(Dense(100))
-    model.add(Dense(50))
-    model.add(Dense(10))
+    model.add(Dense(100, activation='elu'))
+    model.add(Dense(50, activation='elu'))
+    model.add(Dense(10, activation='elu'))
     model.add(Dense(1))
 
     return model
