@@ -267,7 +267,7 @@ def transform(lines):
     """
     def transform_line(line):
         (center_image_path, left_image_path, right_image_path, center_steering_angle, throttle, _break, speed) = line
-        correction_factor = 1.5
+        correction_factor = 0.9
         correction = center_steering_angle * correction_factor
         left_steering_angle = center_steering_angle + correction
         right_steering_angle = center_steering_angle - correction
