@@ -267,30 +267,30 @@ def transform(lines):
     """
     def transform_line(line):
         (center_image_path, left_image_path, right_image_path, center_steering_angle, throttle, _break, speed) = line
-        correction_factor = 0.9
-        correction = center_steering_angle * correction_factor
-        left_steering_angle = center_steering_angle + correction
-        right_steering_angle = center_steering_angle - correction
+        # correction_factor = 0.9
+        # correction = center_steering_angle * correction_factor
+        # left_steering_angle = center_steering_angle + correction
+        # right_steering_angle = center_steering_angle - correction
+        #
+        # return [(center_image_path, center_steering_angle),
+        #         (left_image_path, left_steering_angle),
+        #         (right_image_path, right_steering_angle)]
+        bigger_correction_factor = 0.3
+        smaller_correction_factor = 0.06
+        if abs(center_steering_angle) < 0.05:
+            left_steering_angle = center_steering_angle + smaller_correction_factor
+            right_steering_angle = center_steering_angle - smaller_correction_factor
 
-        return [(center_image_path, center_steering_angle),
-                (left_image_path, left_steering_angle),
-                (right_image_path, right_steering_angle)]
-        # bigger_correction_factor = 0.3
-        # smaller_correction_factor = 0.06
-        # if abs(center_steering_angle) < 0.05:
-        #     left_steering_angle = center_steering_angle + smaller_correction_factor
-        #     right_steering_angle = center_steering_angle - smaller_correction_factor
-        #
-        #     return [(center_image_path, center_steering_angle),
-        #             (left_image_path, left_steering_angle),
-        #             (right_image_path, right_steering_angle)]
-        # else:
-        #     left_steering_angle = center_steering_angle + bigger_correction_factor
-        #     right_steering_angle = center_steering_angle - bigger_correction_factor
-        #
-        #     return [(center_image_path, center_steering_angle),
-        #             (left_image_path, left_steering_angle),
-        #             (right_image_path, right_steering_angle)]
+            return [(center_image_path, center_steering_angle),
+                    (left_image_path, left_steering_angle),
+                    (right_image_path, right_steering_angle)]
+        else:
+            left_steering_angle = center_steering_angle + bigger_correction_factor
+            right_steering_angle = center_steering_angle - bigger_correction_factor
+
+            return [(center_image_path, center_steering_angle),
+                    (left_image_path, left_steering_angle),
+                    (right_image_path, right_steering_angle)]
 
     def normal_and_flipped(pair):
         image_path, steering_angle = pair
