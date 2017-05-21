@@ -276,8 +276,8 @@ def transform(lines):
         #         (left_image_path, left_steering_angle),
         #         (right_image_path, right_steering_angle)]
         correction_factor_level1 = 0.06
-        correction_factor_level2 = 0.3
-        correction_factor_level3 = 0.5
+        correction_factor_level2 = 0.2
+        correction_factor_level3 = 0.6
 
         abs_center_steering_angle = abs(center_steering_angle)
         left_steering_angle = center_steering_angle
