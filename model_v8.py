@@ -286,7 +286,7 @@ def transform(lines):
         if abs_center_steering_angle < 0.05:
             left_steering_angle = center_steering_angle + correction_factor_level1
             right_steering_angle = center_steering_angle - correction_factor_level1
-        elif abs_center_steering_angle < 0.12:
+        elif abs_center_steering_angle < 0.15:
             left_steering_angle = center_steering_angle + correction_factor_level2
             right_steering_angle = center_steering_angle - correction_factor_level2
         else:
